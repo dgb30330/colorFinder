@@ -9,6 +9,14 @@ These return Image objects (created by the PIL library). You would then have to 
 Methodology:
 The image is reduced to 5000 representative pixels that are then sorted according to the **Bucket** (Bucket(rmin,rmax,gmin,gmax,bmin,bmax)) objects, defining ~ 4000 color ranges. The bucket with the most numerous pixel occurances is then used to provide an average of the pixels sorted into that bucket. 
 
+Example Result:
+Feeding this image:
+<img src="gaucho.jpg" width=200><br>
+Provides this result:
+rgb: (193, 197, 182)
+hex: #c1c5b6
+<img src="gauchoGrey.png" width=200><br>
+
 Possible features:
 Block return ranges. As of now, blacks/grays will frequently be returned for darker images, as would be expected. By creating a threshold for colors evaluated, a 'highlight color' could be determined.
 
