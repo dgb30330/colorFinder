@@ -1,5 +1,8 @@
 from PIL import Image
 import requests
+import time
+
+from requests.models import RequestEncodingMixin
 
 class Bucket:
     def __init__(self,rmin,rmax,gmin,gmax,bmin,bmax):
@@ -18,6 +21,19 @@ class Bucket:
                 if pixelTuple[2] >= self.bmin and pixelTuple[2] <= self.bmax:
                     self.count += 1
                     self.pixels.append(pixelTuple)
+
+    def weightedCount(self):
+        blackSum = 150
+        wCount = self.count
+        if (self.bmax + self.gmax + self.rmax) < blackSum:
+            wCount *= ((self.bmax + self.gmax + self.rmax)/blackSum)
+
+        whiteSum = 650
+        if (self.bmax + self.gmax + self.rmax) > whiteSum:
+            wCount *= (whiteSum/(self.bmax + self.gmax + self.rmax))
+        
+
+        return wCount
         
     
     def getAverage(self):
@@ -64,6 +80,7 @@ def createBuckets():
 
 def getImageWeb(url):
     rawData = requests.get(url, stream=True).raw
+    time.sleep(1)
     image = Image.open(rawData)
     return image
     
@@ -71,6 +88,27 @@ def getImageWeb(url):
 def getImageLocal(fileLoc):
     image = Image.open(fileLoc)
     return image
+
+def analyseImage(image,res = 100):
+    width, height = image.size
+    pixelCount = int((width*height)/30)
+    print(pixelCount)
+    pixels = getPixelSample(image,pixelCount)
+    allBuckets = createBuckets()
+
+    for p in pixels:
+        for b in allBuckets:
+            b.eval(p)
+    
+    total = 0
+    activeBuckets = []
+    for b in allBuckets:
+        if b.count > 0:
+            total += b.count
+            activeBuckets.append(b)
+
+    for b in activeBuckets:
+        print("Percent: "+str(100.0*(b.count/total))+"% Count: "+str(b.count)+" "+str(b.rmin)+","+str(b.gmin)+","+str(b.bmin))
 
 def findColor(image):
     pixels = getPixelSample(image)
@@ -86,22 +124,90 @@ def findColor(image):
         if b.count > 0:
             print("Count: "+str(b.count)+" "+str(b.rmin)+","+str(b.gmin)+","+str(b.bmin))
         """
-        if b.count > maxBucket.count:
+        #if b.count > maxBucket.count: 
+        if b.weightedCount() > maxBucket.weightedCount():
             maxBucket = b
 
     return maxBucket.getAverage()
 
-def getPixelSample(image):
+def colorSum(colorTuple):
+    return colorTuple[0]+colorTuple[1]+colorTuple[2]
+
+def findSecondary(image, primaryTuple):
+    pixels = getPixelSample(image)
+    allBuckets = createBuckets()
+    maxSum = 255*3
+    primarySum = colorSum(primaryTuple)
+    neededDiv = 100*((2.6*maxSum)/(maxSum + primarySum))
+    #print(neededDiv)
+    rangeControl = 4
+    rangeLimit = (primarySum/30) + rangeControl + 1
+    #print("range limit "+str(rangeLimit))
+    passed = False
+    while not passed:
+        blackoutRange = int(maxSum/rangeControl)
+        blackoutMin = primarySum - blackoutRange
+        blackoutMax = primarySum + blackoutRange
+        rMin = primaryTuple[0] - blackoutRange/2
+        rMax = primaryTuple[0] + blackoutRange/2
+        gMin = primaryTuple[1] - blackoutRange/2
+        gMax = primaryTuple[1] + blackoutRange/2
+        bMin = primaryTuple[2] - blackoutRange/2
+        bMax = primaryTuple[2] + blackoutRange/2
+        #print("prime:"+str(primarySum)+" max:"+str(blackoutMax)+" min:"+str(blackoutMin))
+
+        for p in pixels:
+            for b in allBuckets:
+                bColor = (b.rmax,b.gmax,b.bmax)
+                bSum = colorSum(bColor)
+                if (not ((bSum > blackoutMin) and (bSum < blackoutMax))) or \
+                    ((not ((b.rmax > rMin) and (b.rmax < rMax))))or\
+                        ((not ((b.gmax > gMin) and (b.gmax < gMax))))or\
+                            ((not ((b.bmax > bMin) and (b.bmax < bMax)))):
+                    b.eval(p)
+
+        maxBucket = allBuckets[0]
+        for b in allBuckets:
+            if b.weightedCount() > maxBucket.weightedCount():
+                maxBucket = b
+        if maxBucket.count >= (len(pixels)/neededDiv):
+            passed = True
+            #print(maxBucket.count)
+            secondaryColor = maxBucket.getAverage()
+        rangeControl += 1
+        if rangeControl > rangeLimit:
+            secondaryColor = defaultSecondary(primaryTuple)
+            passed = True
+    
+    return secondaryColor
+    
+
+def defaultSecondary(colorTuple):
+    if colorSum(colorTuple) > 650: 
+        default = (200, 200, 200)
+    elif colorSum(colorTuple) < 150:
+        default = (90, 90, 90)
+    else:
+        default = (255, 255, 255)
+    return default
+
+
+def getPixelSample(image,sampleSize = 5000):
     # pass Image.open() object
     width, height = image.size
-
+    
     #print(str(width) + " x " + str(height))
+    #print(image.mode)
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
     pixelGrid = image.load()
+    
+    #print(pixelGrid[0,0])
     pixels = []
     x = 0
     y = 0
-    sampleRate = int((height*width)/5000)
-    #print(sampleRate)
+    sampleRate = int((height*width)/sampleSize)
+    print(sampleRate)
     sampleControl = 0
     while x < width:
         while y < height:
@@ -121,13 +227,20 @@ def rgbToHex(pixelTuple):
 #TEST ZONE
 """
 
-url ='https://upload.wikimedia.org/wikipedia/en/8/8f/Steely_Dan_-_Gaucho.jpg'
+url = 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1a/BandwagonesqueCoverArt.png/220px-BandwagonesqueCoverArt.png'
+pole3 ='https://lh3.googleusercontent.com/0ZYTR-IzMXO90o2HGTDi_NBcGxzsUfgre6bsn9FMLRK9t91u012klL1eFK8nl9B6m3nXDxnhQTDYykRvVnF7bxb25oG7glK04tBHXhrgoWvgFRi4b1BXlpAV5ohmmGatqrGiqgXf'
 url2 = 'https://upload.wikimedia.org/wikipedia/en/d/da/Black_Sabbath_debut_album.jpg'
+url3 = 'https://i.scdn.co/image/ab67616d0000b2733b4cadd2c04316e5968dae33'
+local = "C:\\Users\\drgre\\Documents\\Tryon Creek\\Images\\rawImages\\r1uvA\\r1uv031420-1109edit.jpg"
+image = getImageLocal(local)
+analyseImage(image)
+#image = getImageWeb(url3)
+#color = findColor(image)
+#print(color)
+#print(rgbToHex(color))
+#secColor = findSecondary(image,color)
+#print(secColor)
 
-image = getImageWeb(url)
-color = findColor(image)
-print(color)
-print(rgbToHex(color))
-
-
+# pole3 is interesting test case - monochrome record, took range iteration up to 
+# 18 to find second yellow - primary (252, 177, 24) - secondary - (254, 242, 12) 
 """
