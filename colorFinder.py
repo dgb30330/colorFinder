@@ -89,9 +89,9 @@ def getImageLocal(fileLoc):
     image = Image.open(fileLoc)
     return image
 
-def analyseImage(image,res = 100):
+def analyseImage(image,factor = 50):
     width, height = image.size
-    pixelCount = int((width*height)/30)
+    pixelCount = int((width*height)/factor)
     print(pixelCount)
     pixels = getPixelSample(image,pixelCount)
     allBuckets = createBuckets()
@@ -224,3 +224,25 @@ def getPixelSample(image,sampleSize = 5000):
 def rgbToHex(pixelTuple):
     return '#{:02x}{:02x}{:02x}'.format(pixelTuple[0],pixelTuple[1],pixelTuple[2])
 
+#TEST ZONE
+""
+
+url = 'https://upload.wikimedia.org/wikipedia/en/thumb/1/1a/BandwagonesqueCoverArt.png/220px-BandwagonesqueCoverArt.png'
+pole3 ='https://lh3.googleusercontent.com/0ZYTR-IzMXO90o2HGTDi_NBcGxzsUfgre6bsn9FMLRK9t91u012klL1eFK8nl9B6m3nXDxnhQTDYykRvVnF7bxb25oG7glK04tBHXhrgoWvgFRi4b1BXlpAV5ohmmGatqrGiqgXf'
+url2 = 'https://upload.wikimedia.org/wikipedia/en/d/da/Black_Sabbath_debut_album.jpg'
+url3 = 'https://i.scdn.co/image/ab67616d0000b2733b4cadd2c04316e5968dae33'
+local = "C:\\Users\\drgre\\Documents\\Tryon Creek\\Images\\rawImages\\r1uvA\\r1uv031420-1109edit.jpg"
+gaucho = "gaucho.jpg"
+image = getImageLocal(gaucho)
+analyseImage(image)
+#image = getImageWeb(url3)
+#color = findColor(image)
+#print(color)
+#print(rgbToHex(color))
+#secColor = findSecondary(image,color)
+#print(secColor)
+#print(rgbToHex(secColor))
+
+# pole3 is interesting test case - monochrome record, took range iteration up to 
+# 18 to find second yellow - primary (252, 177, 24) - secondary - (254, 242, 12) 
+""
