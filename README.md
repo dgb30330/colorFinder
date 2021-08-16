@@ -1,5 +1,5 @@
 # colorFinder
-This module can be used to find the most commonly occurring color in an image.
+This module can be used to find the most commonly occurring color in an image and a non-conflicting secondary color.
 
 Use:
 
