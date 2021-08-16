@@ -24,6 +24,7 @@ Secondary Color:
 rgb: (56, 127, 171)
 hex: #387fab
 <br><img src="gauchoBlue.png" width=200><br>
+[Sample Analysis Output](https://github.com/dgb30330/colorFinder/blob/main/gauchoAnalysis.txt)
 
 
 
